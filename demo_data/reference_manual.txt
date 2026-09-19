@@ -1,0 +1,35 @@
+================================================================================
+TECHNICAL SPECIFICATION REFERENCE MANUAL
+EQUIPMENT: Model TR-900 Heavy Industrial Gas Turbine / Bearing Housing B-42
+DOCUMENT: SPEC-TR900-REV-4.2
+CLASSIFICATION: Restricted Engineering Standard
+================================================================================
+
+1. HYDRAULIC PRESSURE OPERATING ENVELOPE
+   - Nominal Operating Pressure: 180.0 to 210.0 Bar
+   - Maximum Allowable Working Pressure (MAWP): 220.0 Bar
+   - Critical Safety Cutoff: Systems operating above 220.0 Bar present severe seal
+     failure risks and violate ASME Section VIII Div 1 safety codes.
+
+2. FASTENER TORQUE SPECIFICATIONS
+   - Fastener Specification: Grade 10.9 M16 Flange Retention Bolts
+   - Required Assembly Torque: 125.0 Nm (+/- 5.0 Nm)
+   - Minimum Safe Torque: 120.0 Nm
+   - CRITICAL SAFETY HAZARD: Bolt torque below 120.0 Nm risks fastener fatigue,
+     flange separation, and catastrophic bearing misalignment.
+
+3. VIBRATION THRESHOLDS
+   - Continuous Monitoring Channels: VIB_CH01 (Axial) and VIB_CH02 (Radial)
+   - Baseline Nominal Vibration: <= 3.5 mm/s RMS
+   - Maximum Permissible Operating Limit: 4.2 mm/s RMS
+   - Exceedance Protocol: Any sustained vibration exceeding 4.2 mm/s requires
+     immediate rotor balance inspection and speed reduction.
+
+4. LUBRICATION STANDARDS
+   - Required Lubricant: ISO VG 46 Fully Synthetic Turbine Fluid
+   - Prohibited Fluids: Mineral engine oils, automotive SAE grades, or uncertified blends.
+
+5. HOUSING INTEGRITY STANDARDS
+   - External Bearing Housing B-42 must remain pristine with zero pitting,
+     micro-fracturing, or thermal erosion along the bearing saddle.
+================================================================================

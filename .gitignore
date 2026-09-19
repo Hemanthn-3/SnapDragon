@@ -1,0 +1,70 @@
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+*.so
+*.egg
+*.egg-info/
+dist/
+build/
+.eggs/
+*.whl
+
+# Virtual environments
+.venv/
+venv/
+env/
+ENV/
+
+# Environment variables
+.env
+.env.local
+*.env
+
+# IDE / editor
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+Thumbs.db
+
+# pytest cache
+.pytest_cache/
+*.pytest_cache
+
+# NEXUS runtime data (don't commit user data)
+data/documents/
+data/reports/
+data/audio/
+data/nexus.db
+data/nexus.log
+data/*.db
+data/*.log
+
+# Models (large binary files — download separately)
+models/
+!models/.gitkeep
+
+# Benchmarks raw output (auto-generated)
+benchmarks/raw/
+benchmarks/results/
+
+# Logs
+*.log
+logs/
+
+# Temporary files
+*.tmp
+*.bak
+tmp/
+temp/
+
+# Windows
+Desktop.ini
+$RECYCLE.BIN/
+
+# Node (if any frontend tooling)
+node_modules/

@@ -1,0 +1,1009 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>NEXUS - Offline Multimodal Work Agent</title>
+  <meta name="description" content="NEXUS is an offline-first multimodal AI work agent engineered for Snapdragon-powered Windows PCs.">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/css/style.css">
+</head>
+<body>
+  <!-- Ambient background glow elements -->
+  <div class="ambient-glow glow-1"></div>
+  <div class="ambient-glow glow-2"></div>
+
+  <!-- Global Non-Technical Error Banner -->
+  <div id="userFriendlyNotice" class="user-notice-banner" style="display: none;" role="alert" aria-live="assertive">
+    <div class="notice-icon-group">
+      <span class="notice-icon" id="noticeIcon">💡</span>
+      <div class="notice-text-group">
+        <strong id="noticeTitle">Notice</strong>
+        <p id="noticeMessage">System operational.</p>
+      </div>
+    </div>
+    <button type="button" class="btn-notice-dismiss" id="dismissNoticeBtn" aria-label="Dismiss message">&times;</button>
+  </div>
+
+  <div class="app-container">
+    <!-- Top Global App Bar -->
+    <header class="app-topbar">
+      <div class="topbar-brand">
+        <div class="brand-logo-mark">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" class="brand-svg">
+            <polygon points="12 2 2 7 12 12 22 7 12 2"></polygon>
+            <polyline points="2 17 12 22 22 17"></polyline>
+            <polyline points="2 12 12 17 22 12"></polyline>
+          </svg>
+        </div>
+        <div class="brand-headings">
+          <div class="brand-title-row">
+            <span class="brand-name">NEXUS</span>
+            <span class="brand-badge-pill">SNAPDRAGON X EDITION</span>
+          </div>
+          <span class="brand-subtitle">Offline Multimodal Work Agent</span>
+        </div>
+      </div>
+
+      <!-- Strict Local-Only Shield Bar (Compact Topbar Integration) -->
+      <div class="local-only-shield-bar" id="localOnlyShieldBar" title="Hardware-enforced local offline security layer">
+        <div class="shield-item shield-mode">
+          <span class="shield-label">LOCAL ONLY</span>
+          <span class="shield-status active"><span class="pulse-dot active"></span>ACTIVE</span>
+        </div>
+        <div class="shield-divider"></div>
+        <div class="shield-item">
+          <span class="shield-label">Internet:</span>
+          <span class="shield-val status-offline" id="shieldInternetStatus">OFFLINE</span>
+        </div>
+        <div class="shield-divider"></div>
+        <div class="shield-item">
+          <span class="shield-label">Cloud AI:</span>
+          <span class="shield-val status-disabled" id="shieldCloudAi">DISABLED</span>
+        </div>
+        <div class="shield-divider"></div>
+        <div class="shield-item">
+          <span class="shield-label">AI Processing:</span>
+          <span class="shield-val status-local" id="shieldAiProcessing">LOCAL</span>
+        </div>
+        <div class="shield-divider"></div>
+        <div class="shield-item shield-requests-group">
+          <span class="shield-label">Network requests:</span>
+          <span class="shield-val status-requests" id="shieldNetworkRequests">0 loopback | 0 blocked</span>
+        </div>
+      </div>
+    </header>
+
+    <!-- Accessible 9-Screen Navigation Bar -->
+    <nav class="app-nav" role="tablist" aria-label="NEXUS Screen Navigation" id="mainNavigation">
+      <button class="nav-tab active" data-screen="home" role="tab" aria-selected="true" aria-controls="screen-home" id="tab-home" tabindex="0">
+        <span class="nav-icon">🏠</span>
+        <span class="nav-label">Home</span>
+        <kbd class="nav-kbd" title="Shortcut: Alt+1">Alt+1</kbd>
+      </button>
+      <button class="nav-tab" data-screen="new-task" role="tab" aria-selected="false" aria-controls="screen-new-task" id="tab-new-task" tabindex="-1">
+        <span class="nav-icon">✨</span>
+        <span class="nav-label">New Task</span>
+        <kbd class="nav-kbd" title="Shortcut: Alt+2">Alt+2</kbd>
+      </button>
+      <button class="nav-tab" data-screen="agent-workspace" role="tab" aria-selected="false" aria-controls="screen-agent-workspace" id="tab-agent-workspace" tabindex="-1">
+        <span class="nav-icon">⚡</span>
+        <span class="nav-label">Agent Workspace</span>
+        <kbd class="nav-kbd" title="Shortcut: Alt+3">Alt+3</kbd>
+      </button>
+      <button class="nav-tab" data-screen="evidence" role="tab" aria-selected="false" aria-controls="screen-evidence" id="tab-evidence" tabindex="-1">
+        <span class="nav-icon">🔍</span>
+        <span class="nav-label">Evidence</span>
+        <kbd class="nav-kbd" title="Shortcut: Alt+4">Alt+4</kbd>
+      </button>
+      <button class="nav-tab" data-screen="documents" role="tab" aria-selected="false" aria-controls="screen-documents" id="tab-documents" tabindex="-1">
+        <span class="nav-icon">📁</span>
+        <span class="nav-label">Documents</span>
+        <kbd class="nav-kbd" title="Shortcut: Alt+5">Alt+5</kbd>
+      </button>
+      <button class="nav-tab" data-screen="task-history" role="tab" aria-selected="false" aria-controls="screen-task-history" id="tab-task-history" tabindex="-1">
+        <span class="nav-icon">📜</span>
+        <span class="nav-label">Task History</span>
+        <kbd class="nav-kbd" title="Shortcut: Alt+6">Alt+6</kbd>
+      </button>
+      <button class="nav-tab" data-screen="performance" role="tab" aria-selected="false" aria-controls="screen-performance" id="tab-performance" tabindex="-1">
+        <span class="nav-icon">📊</span>
+        <span class="nav-label">Performance</span>
+        <kbd class="nav-kbd" title="Shortcut: Alt+7">Alt+7</kbd>
+      </button>
+      <button class="nav-tab" data-screen="privacy" role="tab" aria-selected="false" aria-controls="screen-privacy" id="tab-privacy" tabindex="-1">
+        <span class="nav-icon">🛡️</span>
+        <span class="nav-label">Privacy</span>
+        <kbd class="nav-kbd" title="Shortcut: Alt+8">Alt+8</kbd>
+      </button>
+      <button class="nav-tab" data-screen="settings" role="tab" aria-selected="false" aria-controls="screen-settings" id="tab-settings" tabindex="-1">
+        <span class="nav-icon">⚙️</span>
+        <span class="nav-label">Settings</span>
+        <kbd class="nav-kbd" title="Shortcut: Alt+9">Alt+9</kbd>
+      </button>
+    </nav>
+
+    <!-- MAIN SCREENS CONTAINER -->
+    <main class="screens-viewport" id="screensViewport">
+
+      <!-- ============================================================= -->
+      <!-- SCREEN 1: HOME -->
+      <!-- ============================================================= -->
+      <section class="screen-view active" id="screen-home" role="tabpanel" aria-labelledby="tab-home">
+        <div class="home-hero">
+          <div class="brand-pill hero-pill">
+            <span class="pulse-dot active"></span>
+            <span>AIR-GAPPED &bull; System Status: Active</span>
+          </div>
+          <h1 class="hero-title">NEXUS</h1>
+          <p class="hero-subtitle">Offline Multimodal Work Agent</p>
+          <p class="hero-tagline">Engineered for Qualcomm® Snapdragon® X Elite &amp; Copilot+ Windows Silicon</p>
+
+          <!-- Immediate Interaction Bar: [Speak] + [Enter a goal...] -->
+          <div class="home-action-strip">
+            <div class="home-voice-wrapper">
+              <button type="button" id="homeVoiceBtn" class="btn-hero-speak" aria-label="Record voice goal">
+                <span class="btn-icon">🎤</span>
+                <span id="homeVoiceText">Speak</span>
+              </button>
+              <span class="voice-mini-state" id="homeVoiceState">Idle</span>
+            </div>
+
+            <div class="home-goal-input-box">
+              <input type="text" id="homeGoalInput" class="hero-goal-input" placeholder="Enter a goal (e.g. Analyze these inspection documents and create an action report)..." aria-label="Enter your work goal">
+              <button type="button" id="homeStartGoalBtn" class="btn-hero-submit" title="Propose structured plan">
+                <span>Start Task &rarr;</span>
+              </button>
+            </div>
+          </div>
+
+          <!-- Transcript Review Box if speech recorded on Home -->
+          <div id="homeTranscriptBox" class="home-transcript-box" style="display: none;">
+            <div class="transcript-header">
+              <span>Voice Transcript (Review &amp; Edit):</span>
+              <button type="button" id="homeDismissTranscriptBtn" class="btn-text-action">Clear</button>
+            </div>
+            <textarea id="homeTranscriptInput" class="home-transcript-textarea" rows="2"></textarea>
+            <button type="button" id="homeUseTranscriptBtn" class="btn-primary-action btn-sm">Use as Goal &rarr;</button>
+          </div>
+
+          <!-- Example Goal Chips -->
+          <div class="home-chips-row">
+            <span class="chips-label">Quick Prompts:</span>
+            <button type="button" class="prompt-chip" data-goal="Analyze turbine inspection documents and generate a verified safety action report.">Turbine Safety Audit</button>
+            <button type="button" class="prompt-chip" data-goal="Extract mechanical values, verify evidence across pages, and export report.">Compliance Cross-Reference</button>
+            <button type="button" class="prompt-chip" data-goal="Search knowledge base for structural load thresholds and synthesize summary.">Knowledge Retrieval</button>
+          </div>
+
+          <!-- Immediate System Status & Telemetry Row -->
+          <div class="home-telemetry-row">
+            <div class="home-stat-badge highlight-emerald">
+              <span class="badge-label">System Status:</span>
+              <span class="badge-val">LOCAL MODE <span class="pulse-dot active"></span></span>
+            </div>
+            <div class="home-stat-badge">
+              <span class="badge-label">NPU:</span>
+              <span class="badge-val" id="homeNpuStatus">Auditing...</span>
+            </div>
+            <div class="home-stat-badge">
+              <span class="badge-label">Models:</span>
+              <span class="badge-val" id="homeModelsStatus">5 Local Models</span>
+            </div>
+            <div class="home-stat-badge">
+              <span class="badge-label">Network:</span>
+              <span class="badge-val" id="homeNetworkStatus">OFFLINE (AIR-GAPPED)</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Competition Demo Mode Banner Card -->
+        <div class="competition-demo-card" id="competitionDemoCard">
+          <div class="demo-card-banner">
+            <div class="demo-badge">
+              <span class="pulse-dot active"></span>
+              <span>COMPETITION DEMO</span>
+            </div>
+            <span class="demo-subtitle">Reproducible 10-Stage Multimodal Work Agent Inspection</span>
+          </div>
+          <div class="demo-card-content">
+            <div class="demo-prompt-box">
+              <div class="demo-prompt-label">USER GOAL:</div>
+              <p class="demo-prompt-text">"Analyze the inspection package, compare it against the reference manual, identify issues, verify the findings, and create an action report."</p>
+              <div class="demo-meta-tags">
+                <span class="meta-tag">Turbine TR-900</span>
+                <span class="meta-tag">Bearing Housing B-42</span>
+                <span class="meta-tag">Synthetic Dataset (5 Assets)</span>
+                <span class="meta-tag">Air-Gapped Local Execution</span>
+              </div>
+            </div>
+            <div class="demo-cta-actions">
+              <button type="button" id="runCompetitionDemoBtn" class="btn-demo-start">
+                <span class="btn-icon">⚡</span>
+                <span id="demoBtnText">Run Competition Demo</span>
+              </button>
+              <span class="demo-guarantee-text">Verifiable execution &bull; Zero fabricated metrics &bull; Local air-gap</span>
+            </div>
+          </div>
+
+          <!-- Live 10-Stage Progress Stepper & Execution Display -->
+          <div id="demoProgressPanel" class="demo-progress-panel" style="display: none;">
+            <div class="demo-panel-header">
+              <div class="panel-title-group">
+                <h3>⚡ Demo Execution Progress</h3>
+                <span class="demo-progress-badge" id="demoProgressBadge">Running Stage 1/10...</span>
+              </div>
+              <button type="button" id="closeDemoPanelBtn" class="btn-close-sm" aria-label="Close demo panel">&times;</button>
+            </div>
+
+            <!-- The 10 Steps Visual Stepper -->
+            <div class="demo-steps-grid" id="demoStepsGrid">
+              <!-- Dynamically populated 10 steps -->
+            </div>
+
+            <!-- Hardware Telemetry Bar -->
+            <div class="demo-hardware-bar" id="demoHwBar">
+              <div class="demo-hw-item">
+                <span class="hw-lbl">NETWORK:</span>
+                <span class="hw-badge status-offline" id="demoHwNetwork">OFFLINE</span>
+              </div>
+              <div class="demo-hw-item">
+                <span class="hw-lbl">AI:</span>
+                <span class="hw-badge status-local" id="demoHwAi">LOCAL</span>
+              </div>
+              <div class="demo-hw-item">
+                <span class="hw-lbl">NPU:</span>
+                <span class="hw-badge" id="demoHwNpu">Auditing...</span>
+              </div>
+              <div class="demo-hw-item">
+                <span class="hw-lbl">RUNTIME:</span>
+                <span class="hw-badge status-runtime" id="demoHwRuntime">Local Providers</span>
+              </div>
+            </div>
+
+            <!-- Generated Action Report Viewer -->
+            <div id="demoReportSection" class="demo-report-section" style="display: none;">
+              <div class="demo-report-header">
+                <div class="report-header-title">
+                  <span class="report-icon">📄</span>
+                  <span id="demoReportTitleText">Turbine Action Report</span>
+                </div>
+                <div class="report-actions">
+                  <button type="button" id="copyDemoReportBtn" class="btn-secondary-action btn-sm">Copy Markdown</button>
+                  <a id="downloadDemoReportBtn" class="btn-primary-action btn-sm" download="turbine_action_report.md" href="#">Download Report</a>
+                </div>
+              </div>
+              <div class="demo-report-body" id="demoReportView">
+                <!-- Rendered Markdown Report -->
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Quick Access Feature Cards -->
+        <div class="home-cards-grid">
+          <div class="home-nav-card" data-target-screen="new-task">
+            <div class="nav-card-icon">✨</div>
+            <h3>New Task</h3>
+            <p>Decompose high-level goals into acyclic execution graphs (DAG) with strict tool sandboxing.</p>
+            <span class="nav-card-link">Open Planner &rarr;</span>
+          </div>
+
+          <div class="home-nav-card" data-target-screen="agent-workspace">
+            <div class="nav-card-icon">⚡</div>
+            <h3>Agent Workspace</h3>
+            <p>Monitor real-time execution across Goal, Plan, Current Task, Grounded Evidence, and Result.</p>
+            <span class="nav-card-link">View Workspace &rarr;</span>
+          </div>
+
+          <div class="home-nav-card" data-target-screen="documents">
+            <div class="nav-card-icon">📁</div>
+            <h3>Document Manager</h3>
+            <p>Air-gapped local ingestion of PDFs, DOCX, TXT, and images with 384-dim vector indexing.</p>
+            <span class="nav-card-link">Manage Files &rarr;</span>
+          </div>
+
+          <div class="home-nav-card" data-target-screen="evidence">
+            <div class="nav-card-icon">🔍</div>
+            <h3>Evidence Verification</h3>
+            <p>Audit technical findings against source citations with zero chain-of-thought data leakage.</p>
+            <span class="nav-card-link">Verify Claims &rarr;</span>
+          </div>
+
+          <div class="home-nav-card" data-target-screen="performance">
+            <div class="nav-card-icon">📊</div>
+            <h3>Silicon Performance</h3>
+            <p>Evidence-driven multi-iteration benchmarks measuring latency, memory, and Qualcomm NPU readiness.</p>
+            <span class="nav-card-link">View Telemetry &rarr;</span>
+          </div>
+
+          <div class="home-nav-card" data-target-screen="privacy">
+            <div class="nav-card-icon">🛡️</div>
+            <h3>Privacy &amp; Air-Gap</h3>
+            <p>Strict socket-level guard blocking external outbound requests while permitting local loopback IPC.</p>
+            <span class="nav-card-link">Audit Security &rarr;</span>
+          </div>
+        </div>
+      </section>
+
+      <!-- ============================================================= -->
+      <!-- SCREEN 2: NEW TASK -->
+      <!-- ============================================================= -->
+      <section class="screen-view" id="screen-new-task" role="tabpanel" aria-labelledby="tab-new-task">
+        <div class="screen-header">
+          <div class="screen-title-group">
+            <h2>Create New Task</h2>
+            <p class="screen-desc">Formulate a goal for the autonomous agent. NEXUS will decompose it into a verified topological execution graph.</p>
+          </div>
+        </div>
+
+        <div class="card new-task-card">
+          <form id="newTaskForm" onsubmit="return false;">
+            <div class="form-group">
+              <label for="newTaskGoalInput" class="form-label">
+                <span>Objective / Goal:</span>
+                <span class="label-hint">Be specific about desired output, analysis parameters, and target documents.</span>
+              </label>
+              <div class="goal-input-container">
+                <textarea id="newTaskGoalInput" class="form-textarea" rows="3" placeholder="e.g. Analyze these inspection documents and create an action report." required></textarea>
+                <button type="button" id="newTaskVoiceBtn" class="btn-voice-inline" title="Dictate goal using local Whisper ASR">
+                  <span>🎤 Voice</span>
+                </button>
+              </div>
+            </div>
+
+            <div class="form-row">
+              <div class="form-group flex-1">
+                <label for="taskTargetDocSelect" class="form-label">Target Ingested Document (Optional):</label>
+                <select id="taskTargetDocSelect" class="form-select">
+                  <option value="">All Available Ingested Documents</option>
+                  <!-- Dynamically populated from /documents -->
+                </select>
+              </div>
+              <div class="form-group flex-1">
+                <label for="taskExecutionMode" class="form-label">Task Approval Policy:</label>
+                <select id="taskExecutionMode" class="form-select">
+                  <option value="safe" selected>Require Approval for Exports (Recommended)</option>
+                  <option value="auto">Auto-Approve File Exports</option>
+                </select>
+              </div>
+            </div>
+
+            <div class="task-form-actions">
+              <button type="button" id="submitPlanBtn" class="btn-primary-action">
+                <span>⚡ Propose Structured Plan</span>
+              </button>
+              <button type="button" id="loadInspectionExampleBtn" class="btn-toggle-approval">
+                <span>Load Inspection Template</span>
+              </button>
+              <span class="form-status-text" id="newTaskStatusText">Ready</span>
+            </div>
+          </form>
+        </div>
+
+        <!-- Proposed Plan Preview (if created here) -->
+        <div id="newTaskPlanPreview" class="card plan-preview-card" style="display: none;">
+          <div class="preview-header">
+            <div>
+              <h3>Structured Plan Proposed</h3>
+              <span class="preview-meta" id="previewMeta">6 steps generated &bull; DAG verified</span>
+            </div>
+            <button type="button" id="openInWorkspaceBtn" class="btn-primary-action">
+              <span>Open in Agent Workspace &rarr;</span>
+            </button>
+          </div>
+          <div class="tasks-sequence-list" id="previewTasksList"></div>
+        </div>
+      </section>
+
+      <!-- ============================================================= -->
+      <!-- SCREEN 3: AGENT WORKSPACE -->
+      <!-- ============================================================= -->
+      <section class="screen-view" id="screen-agent-workspace" role="tabpanel" aria-labelledby="tab-agent-workspace">
+        <div class="screen-header">
+          <div class="screen-title-group">
+            <h2>Agent Workspace</h2>
+            <p class="screen-desc">Real-time autonomous execution monitor. Displays active Goal, Structured Plan, Current Task, Grounded Evidence, and Final Result.</p>
+          </div>
+          <div class="workspace-top-actions">
+            <button type="button" id="workspaceExecuteBtn" class="btn-primary-action">
+              <span>▶ Execute Plan</span>
+            </button>
+            <button type="button" id="workspaceAutoApproveBtn" class="btn-toggle-approval">
+              <span>Auto-Approve: OFF</span>
+            </button>
+            <span class="exec-pill-status" id="workspaceExecStatus">Idle</span>
+          </div>
+        </div>
+
+        <!-- Interactive Approval Banner (Displayed when task pauses for user confirmation) -->
+        <div id="workspaceApprovalBanner" class="approval-banner" style="display: none;">
+          <div class="approval-icon">⚠️</div>
+          <div class="approval-content">
+            <h4 id="workspaceApprovalTitle">User Approval Required</h4>
+            <p id="workspaceApprovalDesc">The task is requesting to write or export a report to disk. Please confirm this action.</p>
+          </div>
+          <div class="approval-actions">
+            <button type="button" id="workspaceApproveBtn" class="btn-approve">Approve &amp; Continue</button>
+            <button type="button" id="workspaceDenyBtn" class="btn-deny">Deny</button>
+          </div>
+        </div>
+
+        <!-- The 5 Explicit Required Workspace Panels -->
+        <div class="workspace-five-panels">
+          
+          <!-- 1. GOAL PANEL -->
+          <div class="card workspace-panel" id="panelGoal">
+            <div class="panel-header">
+              <span class="panel-tag">PANEL 1</span>
+              <h3>GOAL</h3>
+            </div>
+            <div class="panel-body">
+              <div class="goal-highlight-box" id="workspaceGoalDisplay">
+                No active task goal loaded. Create a goal in New Task or Home.
+              </div>
+              <div class="goal-meta-row">
+                <span id="workspaceGoalTimestamp">Created: --</span>
+                <span id="workspaceGoalScope">Scope: Air-Gapped Local</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- 2. PLAN PANEL -->
+          <div class="card workspace-panel" id="panelPlan">
+            <div class="panel-header">
+              <div class="panel-header-row">
+                <span class="panel-tag">PANEL 2</span>
+                <h3>PLAN (Topological DAG)</h3>
+              </div>
+              <span class="panel-badge-sub" id="workspacePlanBadge">Acyclic &bull; Verified</span>
+            </div>
+            <div class="panel-body">
+              <div class="tasks-sequence-list" id="workspaceTasksSequenceList">
+                <div class="empty-state-text">No plan tasks proposed yet. Click 'New Task' to generate a plan.</div>
+              </div>
+            </div>
+          </div>
+
+          <!-- 3. CURRENT TASK PANEL -->
+          <div class="card workspace-panel" id="panelCurrentTask">
+            <div class="panel-header">
+              <span class="panel-tag highlight-tag">PANEL 3</span>
+              <h3>CURRENT TASK</h3>
+              <span class="current-task-badge" id="currentTaskBadge">IDLE</span>
+            </div>
+            <div class="panel-body">
+              <div class="current-task-focus-card" id="currentTaskFocusCard">
+                <div class="current-task-top">
+                  <span class="task-focus-id" id="currentTaskId">--</span>
+                  <span class="task-focus-tool" id="currentTaskTool">Tool: None</span>
+                </div>
+                <p class="task-focus-desc" id="currentTaskDesc">No task is currently running.</p>
+                <div class="task-focus-params">
+                  <span class="param-title">Input Parameters:</span>
+                  <pre class="task-params-pre" id="currentTaskParams">{}</pre>
+                </div>
+                <div class="task-focus-meta">
+                  <span id="currentTaskDuration">Elapsed: 0.0s</span>
+                  <span id="currentTaskSafety">Sandbox: Enforced</span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- 4. EVIDENCE PANEL -->
+          <div class="card workspace-panel" id="panelEvidence">
+            <div class="panel-header">
+              <span class="panel-tag">PANEL 4</span>
+              <h3>EVIDENCE (Grounded Citations)</h3>
+              <span class="panel-badge-sub" id="workspaceEvidenceCount">0 Citations</span>
+            </div>
+            <div class="panel-body">
+              <div class="workspace-evidence-list" id="workspaceEvidenceList">
+                <div class="empty-state-text">Evidence citations will appear here as the agent reads documents and retrieves knowledge chunks.</div>
+              </div>
+            </div>
+          </div>
+
+          <!-- 5. RESULT PANEL -->
+          <div class="card workspace-panel" id="panelResult">
+            <div class="panel-header">
+              <div class="panel-header-row">
+                <span class="panel-tag highlight-emerald">PANEL 5</span>
+                <h3>RESULT</h3>
+              </div>
+              <div class="result-header-actions" id="resultHeaderActions" style="display: none;">
+                <button type="button" id="copyResultBtn" class="btn-text-action">Copy Markdown</button>
+              </div>
+            </div>
+            <div class="panel-body">
+              <div class="workspace-result-content" id="workspaceResultContent">
+                <div class="empty-state-text">The synthesized report, findings, and export file paths will be presented here upon execution completion.</div>
+              </div>
+              <div class="exported-file-banner" id="exportedFileBanner" style="display: none;">
+                <span class="export-icon">💾</span>
+                <div class="export-details">
+                  <span class="export-label">Report Safely Exported to Disk:</span>
+                  <code class="export-path" id="exportedPathDisplay">data/reports/...</code>
+                </div>
+              </div>
+            </div>
+          </div>
+
+        </div>
+      </section>
+
+      <!-- ============================================================= -->
+      <!-- SCREEN 4: EVIDENCE VERIFICATION -->
+      <!-- ============================================================= -->
+      <section class="screen-view" id="screen-evidence" role="tabpanel" aria-labelledby="tab-evidence">
+        <div class="screen-header">
+          <div class="screen-title-group">
+            <h2>Evidence Verification Layer</h2>
+            <p class="screen-desc">Audits technical claims against verified source documents. Enforces epistemic statuses (VERIFIED, SUPPORTED, CONTRADICTED, UNCERTAIN, INSUFFICIENT_EVIDENCE) with zero chain-of-thought leaks.</p>
+          </div>
+        </div>
+
+        <div class="card verification-card">
+          <div class="form-group">
+            <div class="form-header-row">
+              <label for="verificationClaimInput" class="form-label">Claim to Verify:</label>
+              <button type="button" id="fillExampleClaimBtn" class="btn-text-action">Use Inspection Value Example</button>
+            </div>
+            <input type="text" id="verificationClaimInput" class="search-input" placeholder="e.g. Inspection value exceeds the reference threshold.">
+          </div>
+
+          <div class="llm-actions">
+            <button type="button" id="verifyClaimBtn" class="btn-primary-action">
+              <span>🔍 Verify Claim Against Evidence</span>
+            </button>
+            <span class="llm-status-text" id="verificationStatusText">Ready</span>
+          </div>
+
+          <!-- Verification Result Card -->
+          <div id="verificationResultCard" class="verification-result-card" style="display: none;">
+            <div class="verify-header">
+              <div class="verify-title-group">
+                <span class="verify-id-pill" id="verifyFindingId">finding_1</span>
+                <span class="verify-status-badge" id="verifyStatusBadge">VERIFIED</span>
+                <span class="verify-conf-tag" id="verifyConfidenceTag">Confidence: 94%</span>
+              </div>
+            </div>
+            <div class="verify-claim-box" id="verifyClaimDisplay"></div>
+            <div class="verify-explanation-box">
+              <span class="verify-sub-title">Concise Evidence Explanation (Zero CoT Leak):</span>
+              <pre id="verifyExplanationDisplay" class="verify-explanation-pre"></pre>
+            </div>
+            <div class="verify-citations-list" id="verifyCitationsList"></div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ============================================================= -->
+      <!-- SCREEN 5: DOCUMENTS -->
+      <!-- ============================================================= -->
+      <section class="screen-view" id="screen-documents" role="tabpanel" aria-labelledby="tab-documents">
+        <div class="screen-header">
+          <div class="screen-title-group">
+            <h2>Local Document Ingestion &amp; Search</h2>
+            <p class="screen-desc">Air-gapped local parser supporting PDF, TXT, DOCX, PNG, JPG, and JPEG. All embeddings generated locally with all-MiniLM-L6-v2.</p>
+          </div>
+          <span class="card-caption" id="docCountBadge">0 Documents Ingested</span>
+        </div>
+
+        <!-- Upload Dropzone -->
+        <div class="upload-dropzone" id="uploadDropzone">
+          <input type="file" id="fileInput" class="file-input" accept=".pdf,.txt,.docx,.png,.jpg,.jpeg">
+          <svg class="upload-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+            <polyline points="17 8 12 3 7 8"></polyline>
+            <line x1="12" y1="3" x2="12" y2="15"></line>
+          </svg>
+          <div class="upload-text">
+            <span class="upload-main-text">Click or drag a local document here to ingest</span>
+            <span class="upload-sub-text">Supported: PDF, TXT, DOCX, PNG, JPG, JPEG (Max 50MB) &bull; 100% Local Storage</span>
+          </div>
+          <div class="upload-spinner" id="uploadSpinner" style="display: none;">
+            <div class="spinner"></div>
+            <span>Parsing document and generating local embeddings...</span>
+          </div>
+        </div>
+
+        <div id="uploadFeedback" class="upload-feedback" style="display: none;"></div>
+
+        <!-- Ingested Documents Table -->
+        <div class="card documents-table-card">
+          <div class="card-header">
+            <h3>Ingested Document Library</h3>
+            <button type="button" id="refreshDocsBtn" class="btn-refresh" title="Reload documents list">Refresh</button>
+          </div>
+          <div class="documents-table-container">
+            <table class="documents-table" id="documentsTable">
+              <thead>
+                <tr>
+                  <th>Filename</th>
+                  <th>Format</th>
+                  <th>Size</th>
+                  <th>Pages</th>
+                  <th>Chunks</th>
+                  <th>OCR Status</th>
+                  <th>Actions</th>
+                </tr>
+              </thead>
+              <tbody id="documentsTableBody">
+                <tr class="empty-row">
+                  <td colspan="7">No local documents ingested yet. Upload a document above.</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- Local Semantic Search Sandbox -->
+        <div class="card search-card">
+          <div class="card-header">
+            <div>
+              <h3>Semantic Retrieval Test Bench</h3>
+              <p class="section-desc">Dense vector dot-product cosine similarity over all-MiniLM-L6-v2 ONNX embeddings.</p>
+            </div>
+            <span class="card-caption">Zero Cloud Fallback</span>
+          </div>
+          <div class="search-bar-container">
+            <div class="search-input-wrapper">
+              <input type="text" id="searchQueryInput" class="search-input" placeholder="Search local documents semantically...">
+            </div>
+            <div class="search-controls">
+              <label for="topKSelect" class="topk-label">Top-K:</label>
+              <select id="topKSelect" class="topk-select">
+                <option value="3" selected>3</option>
+                <option value="5">5</option>
+                <option value="10">10</option>
+              </select>
+              <button type="button" id="searchKnowledgeBtn" class="btn-primary-action">
+                <span>Search</span>
+              </button>
+            </div>
+          </div>
+          <div id="searchResultsContainer" class="search-results-list" style="display: none;">
+            <div class="results-header">
+              <h4 id="resultsQueryTitle">Results</h4>
+              <span class="results-count" id="resultsCount">0 citations</span>
+            </div>
+            <div class="results-grid" id="resultsGrid"></div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ============================================================= -->
+      <!-- SCREEN 6: TASK HISTORY -->
+      <!-- ============================================================= -->
+      <section class="screen-view" id="screen-task-history" role="tabpanel" aria-labelledby="tab-task-history">
+        <div class="screen-header">
+          <div class="screen-title-group">
+            <h2>Task Execution History</h2>
+            <p class="screen-desc">Auditable record of previously generated plans, executed tasks, and exported reports stored in local session history.</p>
+          </div>
+          <button type="button" id="clearHistoryBtn" class="btn-toggle-approval">Clear History</button>
+        </div>
+
+        <div class="card history-card">
+          <div class="history-table-container">
+            <table class="documents-table" id="historyTable">
+              <thead>
+                <tr>
+                  <th>Timestamp</th>
+                  <th>Goal</th>
+                  <th>Tasks</th>
+                  <th>Status</th>
+                  <th>Exported Report</th>
+                  <th>Action</th>
+                </tr>
+              </thead>
+              <tbody id="historyTableBody">
+                <tr class="empty-row">
+                  <td colspan="6">No tasks executed in this session yet. Propose and execute a plan to view history.</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+
+      <!-- ============================================================= -->
+      <!-- SCREEN 7: PERFORMANCE -->
+      <!-- ============================================================= -->
+      <section class="screen-view" id="screen-performance" role="tabpanel" aria-labelledby="tab-performance">
+        <div class="screen-header">
+          <div class="screen-title-group">
+            <h2>Silicon Performance &amp; Benchmarks</h2>
+            <p class="screen-desc">Empirical multi-iteration measurements on host hardware, documenting Snapdragon NPU target readiness without fabricating results.</p>
+          </div>
+          <button type="button" id="runBenchmarkBtn" class="btn-primary-action" title="Trigger Multi-Iteration Benchmark Sweep">
+            <span id="runBenchmarkBtnText">Run Live Benchmark</span>
+          </button>
+        </div>
+
+        <!-- 4 KPI Cards -->
+        <div class="kpi-grid">
+          <div class="kpi-card">
+            <span class="kpi-label">Active Provider</span>
+            <span class="kpi-value" id="kpiActiveProvider">Detecting...</span>
+            <span class="kpi-subtext" id="kpiTargetSilicon">Target: Snapdragon 45 TOPS HTP</span>
+          </div>
+          <div class="kpi-card">
+            <span class="kpi-label">Host Silicon</span>
+            <span class="kpi-value" id="kpiHostSilicon">--</span>
+            <span class="kpi-subtext" id="kpiCpuCores">--</span>
+          </div>
+          <div class="kpi-card">
+            <span class="kpi-label">Process Memory (RSS)</span>
+            <span class="kpi-value highlight" id="kpiMemoryRss">-- MB</span>
+            <span class="kpi-subtext" id="kpiSystemMemory">-- GB Available</span>
+          </div>
+          <div class="kpi-card">
+            <span class="kpi-label">Hexagon NPU Status</span>
+            <span class="kpi-value" id="kpiNpuState">Auditing...</span>
+            <span class="kpi-subtext" id="kpiNpuSubtext">Evidence-Driven (No Faking)</span>
+          </div>
+        </div>
+
+        <!-- Telemetry Status Bar -->
+        <div class="telemetry-bar">
+          <div class="telemetry-stat">
+            <span class="telemetry-label">Last Benchmark Run</span>
+            <span class="telemetry-value" id="benchTimestamp">--</span>
+          </div>
+          <div class="telemetry-stat">
+            <span class="telemetry-label">Iterations Tested</span>
+            <span class="telemetry-value" id="benchIterations">-- per model</span>
+          </div>
+          <div class="telemetry-stat">
+            <span class="telemetry-label">Sweep Duration</span>
+            <span class="telemetry-value highlight" id="benchDuration">-- s</span>
+          </div>
+        </div>
+
+        <!-- Empirical Model Performance Table -->
+        <div class="card bench-table-card">
+          <div class="card-header">
+            <h3>Model Latency &amp; Memory Metrics</h3>
+          </div>
+          <div class="bench-table-container">
+            <table class="bench-table">
+              <thead>
+                <tr>
+                  <th>Model Name</th>
+                  <th>Modality</th>
+                  <th>Runtime</th>
+                  <th>Quantization</th>
+                  <th>Cold Start</th>
+                  <th>Warm Median</th>
+                  <th>Warm P95</th>
+                  <th>RSS Memory</th>
+                  <th>Status</th>
+                </tr>
+              </thead>
+              <tbody id="benchTableBody">
+                <tr>
+                  <td colspan="9" class="table-empty-cell">Loading benchmark telemetry...</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+
+      <!-- ============================================================= -->
+      <!-- SCREEN 8: PRIVACY -->
+      <!-- ============================================================= -->
+      <section class="screen-view" id="screen-privacy" role="tabpanel" aria-labelledby="tab-privacy">
+        <div class="screen-header">
+          <div class="screen-title-group">
+            <h2>Privacy &amp; Air-Gap Security Shield</h2>
+            <p class="screen-desc">Zero cloud telemetry, zero remote embeddings, and zero camera surveillance. Hardware-level socket interception guarantees local isolation.</p>
+          </div>
+        </div>
+
+        <div class="privacy-grid">
+          <!-- Shield Card -->
+          <div class="card privacy-shield-card">
+            <div class="card-header">
+              <h3>Air-Gap Status &amp; Socket Interception</h3>
+              <span class="privacy-status-pill verified">STRICT LOCAL ONLY</span>
+            </div>
+            <div class="privacy-metrics-list">
+              <div class="priv-metric-row">
+                <span class="priv-label">Network Guard:</span>
+                <span class="priv-val highlight-emerald">Active (socket.connect hooked)</span>
+              </div>
+              <div class="priv-metric-row">
+                <span class="priv-label">Permitted Destinations:</span>
+                <span class="priv-val">127.0.0.1, localhost, ::1 (Loopback Only)</span>
+              </div>
+              <div class="priv-metric-row">
+                <span class="priv-label">Loopback Requests Served:</span>
+                <span class="priv-val" id="privLoopbackCount">0</span>
+              </div>
+              <div class="priv-metric-row">
+                <span class="priv-label">External Connections Blocked:</span>
+                <span class="priv-val highlight-rose" id="privBlockedCount">0</span>
+              </div>
+            </div>
+            <div class="priv-actions-row">
+              <button type="button" id="toggleSimOfflineBtn" class="btn-toggle-approval">Toggle Simulated Offline Mode</button>
+              <span class="priv-note" id="simOfflineNotice">Simulation: Inactive (Using Physical NIC state)</span>
+            </div>
+          </div>
+
+          <!-- Guarantees Card -->
+          <div class="card privacy-guarantees-card">
+            <div class="card-header">
+              <h3>Core Privacy Guarantees</h3>
+            </div>
+            <ul class="guarantees-list">
+              <li>
+                <span class="guarantee-icon">🛡️</span>
+                <div>
+                  <strong>Zero Cloud Communication</strong>
+                  <p>No telemetry, usage analytics, or error crash dumps are transmitted to external servers.</p>
+                </div>
+              </li>
+              <li>
+                <span class="guarantee-icon">🔒</span>
+                <div>
+                  <strong>100% Local Storage</strong>
+                  <p>Ingested documents, embeddings, SQLite database, and generated reports reside entirely on this PC.</p>
+                </div>
+              </li>
+              <li>
+                <span class="guarantee-icon">🚫</span>
+                <div>
+                  <strong>Zero Unrestricted Surveillance</strong>
+                  <p>No background camera monitoring, continuous audio listening, or unrestricted shell access.</p>
+                </div>
+              </li>
+              <li>
+                <span class="guarantee-icon">✍️</span>
+                <div>
+                  <strong>Approval-Gated File Exports</strong>
+                  <p>Reports and new files are written to disk only with explicit user confirmation.</p>
+                </div>
+              </li>
+            </ul>
+          </div>
+        </div>
+      </section>
+
+      <!-- ============================================================= -->
+      <!-- SCREEN 9: SETTINGS -->
+      <!-- ============================================================= -->
+      <section class="screen-view" id="screen-settings" role="tabpanel" aria-labelledby="tab-settings">
+        <div class="screen-header">
+          <div class="screen-title-group">
+            <h2>Preferences &amp; Accessibility</h2>
+            <p class="screen-desc">Customize UI accessibility, keyboard shortcuts, model generation limits, and storage paths.</p>
+          </div>
+        </div>
+
+        <div class="settings-grid">
+          <!-- Accessibility Settings -->
+          <div class="card settings-card">
+            <div class="card-header">
+              <h3>Accessibility &amp; Typography</h3>
+            </div>
+            <div class="setting-item">
+              <label for="fontScaleSelect" class="setting-label">Font Size Scale:</label>
+              <select id="fontScaleSelect" class="form-select">
+                <option value="100" selected>Standard (100%)</option>
+                <option value="110">Comfortable (110%)</option>
+                <option value="125">Large / Accessible (125%)</option>
+              </select>
+            </div>
+            <div class="setting-item">
+              <label for="highContrastToggle" class="setting-label">High Contrast Mode:</label>
+              <input type="checkbox" id="highContrastToggle" class="setting-checkbox">
+            </div>
+            <div class="setting-item">
+              <label class="setting-label">Keyboard Navigation:</label>
+              <span class="setting-desc">Fully accessible with Tab, Enter, and Screen hotkeys (Alt+1 to Alt+9).</span>
+            </div>
+          </div>
+
+          <!-- Execution Settings -->
+          <div class="card settings-card">
+            <div class="card-header">
+              <h3>Agent Execution Parameters</h3>
+            </div>
+            <div class="setting-item">
+              <label for="defaultTopKSetting" class="setting-label">Default Retrieval Top-K:</label>
+              <select id="defaultTopKSetting" class="form-select">
+                <option value="3" selected>3 Citations</option>
+                <option value="5">5 Citations</option>
+                <option value="10">10 Citations</option>
+              </select>
+            </div>
+            <div class="setting-item">
+              <label for="maxTokensSetting" class="setting-label">LLM Max Output Tokens:</label>
+              <select id="maxTokensSetting" class="form-select">
+                <option value="128">128 tokens (Fastest)</option>
+                <option value="256" selected>256 tokens (Balanced)</option>
+                <option value="512">512 tokens (Detailed)</option>
+              </select>
+            </div>
+          </div>
+
+          <!-- Storage Details -->
+          <div class="card settings-card">
+            <div class="card-header">
+              <h3>Local Storage Details</h3>
+            </div>
+            <div class="storage-info-list">
+              <div class="storage-row">
+                <span>Database Engine:</span>
+                <code>SQLite (WAL Mode) &bull; data/nexus.db</code>
+              </div>
+              <div class="storage-row">
+                <span>Document Storage:</span>
+                <code>data/documents/</code>
+              </div>
+              <div class="storage-row">
+                <span>Exported Reports:</span>
+                <code>data/reports/</code>
+              </div>
+            </div>
+          </div>
+
+          <!-- Non-Technical Troubleshooting Guide -->
+          <div class="card settings-card">
+            <div class="card-header">
+              <h3>Troubleshooting Guide</h3>
+            </div>
+            <div class="troubleshooting-faq">
+              <div class="faq-item">
+                <strong>Why does NPU show 'Absent on x86_64'?</strong>
+                <p>NEXUS truthfully detects whether Qualcomm's Hexagon NPU is physically present. When running on standard AMD/Intel PCs, it falls back to CPU execution without falsifying NPU results.</p>
+              </div>
+              <div class="faq-item">
+                <strong>How does Voice Input work without internet?</strong>
+                <p>Voice dictation is decoded on your local CPU/NPU using OpenAI Whisper Small Quantized. No audio data ever leaves your device.</p>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+    </main>
+
+    <!-- Document Detail & Chunks Modal -->
+    <div class="modal-backdrop" id="documentModal" style="display: none;" role="dialog" aria-modal="true" aria-labelledby="modalDocTitle">
+      <div class="modal-card">
+        <div class="modal-header">
+          <div class="modal-title-group">
+            <h3 id="modalDocTitle">Document Details</h3>
+            <span class="modal-subtitle" id="modalDocMeta">--</span>
+          </div>
+          <button class="btn-close-modal" id="closeModalBtn" aria-label="Close dialog">&times;</button>
+        </div>
+        <div class="modal-body" id="modalDocBody">
+          <!-- Chunks injected dynamically -->
+        </div>
+      </div>
+    </div>
+
+    <!-- Footer -->
+    <footer class="app-footer">
+      <div class="footer-info">
+        <span>NEXUS Core v0.1.0 &bull; Qualcomm AI Engine Direct Ready &bull; Offline Architecture</span>
+      </div>
+      <div class="footer-links">
+        <a href="/health" target="_blank" class="footer-link">Raw /health</a>
+        <a href="/network/status" target="_blank" class="footer-link">Raw /network/status</a>
+        <a href="/docs" target="_blank" class="footer-link">OpenAPI Docs</a>
+      </div>
+    </footer>
+  </div>
+
+  <script src="/js/app.js"></script>
+</body>
+</html>

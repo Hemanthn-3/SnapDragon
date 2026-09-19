@@ -1,0 +1,44 @@
+{
+  "equipment_id": "TR-900-STATION-4",
+  "timestamp_utc": "2026-09-15T14:30:00Z",
+  "sampling_rate_hz": 1000,
+  "operating_state": "BASE_LOAD_RUNNING",
+  "channels": [
+    {
+      "channel_id": "VIB_CH01",
+      "description": "Shaft Axial Vibration",
+      "measured_rms": 3.1,
+      "unit": "mm/s",
+      "threshold_max": 4.2,
+      "status": "NOMINAL"
+    },
+    {
+      "channel_id": "VIB_CH02",
+      "description": "Shaft Radial Vibration",
+      "measured_rms": 5.8,
+      "unit": "mm/s",
+      "threshold_max": 4.2,
+      "status": "EXCEEDANCE"
+    },
+    {
+      "channel_id": "PRESS_HYD01",
+      "description": "Main Hydraulic Line Pressure",
+      "measured_rms": 245.0,
+      "unit": "Bar",
+      "threshold_max": 220.0,
+      "status": "EXCEEDANCE"
+    },
+    {
+      "channel_id": "TEMP_BRG01",
+      "description": "Bearing Housing Temperature",
+      "measured_rms": 68.4,
+      "unit": "Celsius",
+      "threshold_max": 85.0,
+      "status": "NOMINAL"
+    }
+  ],
+  "system_alarms": [
+    "ALARM_VIB_RADIAL_HIGH: Channel VIB_CH02 measured 5.8 mm/s (Limit 4.2 mm/s)",
+    "ALARM_HYD_PRESSURE_CRITICAL: Channel PRESS_HYD01 measured 245.0 Bar (MAWP 220.0 Bar)"
+  ]
+}
