@@ -115,8 +115,9 @@ def test_benchmark_speech_model():
 def test_benchmark_vision_model():
     """Verifies that OpenAI-CLIP vision benchmark runs with empirical measurements."""
     runner = BenchmarkRunner(iterations=2)
+    from backend.models_local.clip_vision import local_clip_vision
     res = runner.benchmark_vision_model()
-    assert res["model_name"] == "OpenAI-CLIP-ViT-B32-Quantized"
+    assert res["model_name"] == local_clip_vision.model_name
     assert res["iterations"] == 2
     assert res["latency_stats"]["median_ms"] > 0.0
     assert res["rss_memory_mb"] > 0.0

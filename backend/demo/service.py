@@ -349,17 +349,23 @@ class DemoOrchestrator:
             if vision_res.success and vision_res.output:
                 obs = vision_res.output.get("observed", {})
                 inf = vision_res.output.get("inferred", {})
+                top_cands = inf.get("top_candidates", [])
+                top_labels = [c.get("label") for c in top_cands[:3]] if top_cands else ["mechanical assembly"]
+                primary_class = inf.get("primary_classification", "mechanical component")
+                conf = inf.get("confidence", 0.0)
+
                 vision_details = {
                     "target_image": "bearing_assembly_inspection.png",
-                    "model": "OpenAI-CLIP-ViT-B32-Quantized (Local)",
+                    "model": f"{local_clip_vision.model_name} (ONNX Runtime Local)",
+                    "execution_provider": vision_res.output.get("execution_provider", local_clip_vision.execution_provider),
                     "observed": {
                         "resolution": f"{obs.get('dimensions', {}).get('width')}x{obs.get('dimensions', {}).get('height')}",
                         "format": obs.get("format"),
-                        "top_visual_tags": [c.get("label") for c in obs.get("top_candidates", [])[:3]] if obs.get("top_candidates") else ["surface pitting and abrasion", "mechanical assembly"],
+                        "top_visual_tags": top_labels,
                     },
                     "inferred": {
-                        "visual_finding": "Surface pitting, scoring, and micro-abrasions detected along top saddle.",
-                        "contradiction_noted": "Directly contradicts inspection report claim that housing condition was 'Pristine'.",
+                        "visual_finding": f"Genuine neural vision classification: '{primary_class}' ({conf*100:.1f}% confidence). Candidate visual features: {', '.join(top_labels)}.",
+                        "defect_detection_boundary": "General ImageNet vision models classify macro visual structure; specialized ultrasonic or eddy-current NDT telemetry is required to verify microscopic subsurface fatigue.",
                     },
                 }
 

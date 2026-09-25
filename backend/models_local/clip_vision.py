@@ -1,17 +1,17 @@
 """
-NEXUS Local Vision Model Adapter: OpenAI-CLIP (ViT-B/32)
-Supports PNG, JPG, and images extracted from PDFs.
-Performs local visual inspection, generates 512-dim visual embeddings,
-and strictly demarcates OBSERVED (measurable facts) from INFERRED (semantic deductions).
-Zero unrestricted camera monitoring.
+NEXUS Local Vision Model Adapter: Genuine ONNX Neural Network Inference
+Dual-head architecture: 1000-class ImageNet classification + 512-dimensional visual embedding.
+Supports PNG, JPG, JPEG, and raster images extracted from PDFs.
+Performs local visual inspection, strictly demarcating OBSERVED (measurable facts)
+from INFERRED (neural semantic deductions). Zero unrestricted camera monitoring.
 """
 
 import io
-import math
+import json
 import platform
 import time
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any, Dict, List, Optional, Tuple, Union
 import numpy as np
 from PIL import Image
 
@@ -21,23 +21,35 @@ from backend.logger import get_logger
 
 logger = get_logger("nexus.vision")
 
-DEFAULT_VISION_DIR = Path(__file__).resolve().parent.parent.parent / "models" / "vision" / "OpenAI-Clip"
+DEFAULT_VISION_DIR = Path(__file__).resolve().parent.parent.parent / "models" / "vision"
+DEFAULT_MODEL_PATH = DEFAULT_VISION_DIR / "resnet18_vision.onnx"
+DEFAULT_CLASSES_PATH = DEFAULT_VISION_DIR / "imagenet_classes.json"
+
+# Standard ImageNet normalization coefficients
+IMAGENET_MEAN = np.array([0.485, 0.456, 0.406], dtype=np.float32)
+IMAGENET_STD = np.array([0.229, 0.224, 0.225], dtype=np.float32)
 
 
 class LocalClipVisionModel(VisionModel):
     """
-    Local multimodal vision understanding adapter for OpenAI-CLIP (ViT-B/32).
-    Operates 100% offline on local images with zero external cloud APIs.
+    Local multimodal vision understanding adapter executing real ONNX Runtime inference.
+    Executes real neural-network weights on Qualcomm Hexagon NPU (QNNExecutionProvider)
+    or CPUExecutionProvider fallback on non-Snapdragon systems.
+    Zero external cloud calls; zero heuristic substitute vectors.
     """
 
     def __init__(
         self,
-        model_name: str = "OpenAI-Clip",
-        model_dir: Optional[Path] = None,
+        model_name: str = "ResNet-18-Vision",
+        model_path: Optional[Union[str, Path]] = None,
+        classes_path: Optional[Union[str, Path]] = None,
         auto_load: bool = False,
     ):
         super().__init__(model_name=model_name)
-        self.model_dir = Path(model_dir) if model_dir else DEFAULT_VISION_DIR
+        self.model_path = Path(model_path) if model_path else DEFAULT_MODEL_PATH
+        self.classes_path = Path(classes_path) if classes_path else DEFAULT_CLASSES_PATH
+        self._session = None
+        self._classes: List[str] = []
         self._execution_provider = "Unloaded"
         self._blockers: List[str] = []
         self._detect_environment()
@@ -57,8 +69,8 @@ class LocalClipVisionModel(VisionModel):
                 f"Qualcomm Hexagon NPU is physically absent on non-Snapdragon silicon."
             )
             self._blockers.append(
-                "QNN Runtime Blocker: OpenAI-CLIP QNN context binary compilation "
-                "targets Snapdragon X Elite/Plus HTP on Windows 11 ARM64."
+                "QNN Runtime Blocker: QNN Execution Provider targets Snapdragon X Elite/Plus "
+                "Hexagon Tensor Processor on Windows 11 ARM64 with QnnHtp.dll."
             )
             self.target_hardware = "CPU (x86_64 Fallback)"
         else:
@@ -72,41 +84,99 @@ class LocalClipVisionModel(VisionModel):
     def execution_provider(self) -> str:
         return self._execution_provider
 
+    def _load_classes(self) -> None:
+        """Loads 1000 ImageNet category labels from JSON."""
+        if self._classes:
+            return
+        if self.classes_path.exists():
+            try:
+                with open(self.classes_path, "r", encoding="utf-8") as f:
+                    self._classes = json.load(f)
+                return
+            except Exception as e:
+                logger.warning(f"Could not load classes from {self.classes_path}: {e}")
+        # Fallback to indexed names
+        self._classes = [f"category_{i}" for i in range(1000)]
+
+    def _get_class_name(self, index: int) -> str:
+        """Safe lookup for class category names."""
+        if 0 <= index < len(self._classes):
+            return self._classes[index]
+        return f"class_{index}"
+
     def load(self) -> bool:
-        """Initializes the local vision understanding engine."""
+        """
+        Initializes the ONNX Runtime inference session with real model weights.
+        Attempts QNNExecutionProvider on Snapdragon ARM64; falls back to CPUExecutionProvider.
+        """
         t0 = time.perf_counter()
-        logger.info(f"Initializing local vision model '{self.model_name}'...")
+        logger.info(f"Loading local vision model '{self.model_name}' from {self.model_path}...")
+
+        if not self.model_path.exists():
+            self._status = ModelStatus.FAILED
+            logger.error(f"Vision model file not found at: {self.model_path}")
+            return False
 
         try:
             import onnxruntime as ort
-            available_providers = ort.get_available_providers()
 
-            if "QNNExecutionProvider" in available_providers and not self._blockers:
-                self._execution_provider = "QNNExecutionProvider"
+            self._load_classes()
+
+            providers = []
+            available = ort.get_available_providers()
+
+            # Attempt QNN on ARM64 Snapdragon only if QnnHtp backend is available
+            if "QNNExecutionProvider" in available and not self._blockers:
+                providers.append((
+                    "QNNExecutionProvider",
+                    {
+                        "backend_path": "QnnHtp.dll",
+                        "htp_performance_mode": "sustained_high_performance",
+                    },
+                ))
+
+            # Always supply CPUExecutionProvider as fallback or primary
+            providers.append("CPUExecutionProvider")
+
+            sess = ort.InferenceSession(str(self.model_path), providers=providers)
+            actual_provider = sess.get_providers()[0]
+
+            self._session = sess
+            self._execution_provider = actual_provider
+
+            if actual_provider == "QNNExecutionProvider":
                 self.target_hardware = "Hexagon NPU"
             else:
-                self._execution_provider = "CPUExecutionProvider"
+                self.target_hardware = "CPU (PyTorch/ORT Fallback)"
 
             self._status = ModelStatus.READY
             elapsed = round((time.perf_counter() - t0) * 1000, 2)
-            logger.info(f"Local vision engine ready in {elapsed}ms (Provider: {self._execution_provider})")
+            logger.info(
+                f"Local vision engine ready in {elapsed}ms "
+                f"(Provider: {self._execution_provider}, Hardware: {self.target_hardware})"
+            )
             return True
+
         except Exception as e:
             self._status = ModelStatus.FAILED
-            logger.error(f"Failed to initialize vision engine: {e}", exc_info=True)
+            self._session = None
+            self._execution_provider = "Unloaded"
+            logger.error(f"Failed to initialize vision ONNX session: {e}", exc_info=True)
             return False
 
     def unload(self) -> None:
+        self._session = None
         self._status = ModelStatus.NOT_LOADED
         self._execution_provider = "Unloaded"
         logger.info(f"Vision model '{self.model_name}' unloaded.")
 
     def get_status(self) -> Dict[str, Any]:
-        """Returns comprehensive diagnostic and architectural metadata for OpenAI-CLIP."""
+        """Returns diagnostic and architectural metadata for the vision model."""
         return {
-            "model_name": "OpenAI-CLIP-ViT-B32-Quantized",
-            "architecture": "Vision Transformer (ViT-B/32)",
-            "quantization": "w8a16",
+            "model_name": self.model_name,
+            "architecture": "ResNet-18 (Dual-Head: ImageNet-1k + 512-dim Embedding)",
+            "framework": "ONNX Runtime",
+            "model_path": str(self.model_path),
             "target_hardware": "Snapdragon X Elite Hexagon NPU",
             "current_hardware": self.target_hardware,
             "execution_provider": self.execution_provider,
@@ -116,43 +186,63 @@ class LocalClipVisionModel(VisionModel):
             "blockers": self.blockers,
             "epistemic_separation": {
                 "observed": "Measurable optical data (dimensions, aspect ratio, color channel statistics, luminance, contrast, entropy, dominant palette)",
-                "inferred": "Semantic deductions (visual category, tags, scene descriptions, capabilities boundaries)",
+                "inferred": "Semantic deductions from genuine neural network inference (top predictions, classification categories, confidence)",
             },
             "capabilities_boundary": (
                 "Optical features and dominant colors were measured directly from pixel arrays. "
-                "Scene category and semantic tags were inferred via OpenAI-CLIP visual feature boundaries. "
-                "Fine-grained alphanumeric character strings must be verified via the dedicated OCR pipeline."
+                "Semantic categories and 512-dim visual embeddings were inferred via ResNet-18 neural network. "
+                "Model is trained on ImageNet-1k general categories; fine-grained industrial defect detection requires dedicated inspection models. "
+                "Alphanumeric text must be verified via the dedicated OCR pipeline."
             ),
         }
 
+    def _preprocess(self, img: Image.Image) -> np.ndarray:
+        """
+        Standard ImageNet preprocessing:
+        1. RGB conversion
+        2. Bicubic resize to 224x224
+        3. Convert to float32 [0.0, 1.0]
+        4. Normalize with ImageNet mean and std
+        5. Transpose to CHW (3, 224, 224) and add batch dim -> (1, 3, 224, 224)
+        """
+        img_rgb = img.convert("RGB").resize((224, 224), Image.Resampling.BICUBIC)
+        arr = np.array(img_rgb, dtype=np.float32) / 255.0
+        normalized = (arr - IMAGENET_MEAN) / IMAGENET_STD
+        chw = np.transpose(normalized, (2, 0, 1))
+        batch = np.expand_dims(chw, axis=0)
+        return batch.astype(np.float32)
+
     def encode_image(self, image_bytes: bytes) -> List[float]:
         """
-        Encodes image bytes into a normalized 512-dimensional visual embedding vector.
-        Uses 224x224 RGB image normalization matching OpenAI-CLIP specifications.
+        Encodes image bytes into a normalized 512-dimensional visual embedding vector
+        via real neural-network inference (ResNet-18 avgpool feature representation).
         """
-        if self.status != ModelStatus.READY:
-            self.load()
+        if not image_bytes:
+            raise ValueError("Image bytes payload is empty.")
 
-        with Image.open(io.BytesIO(image_bytes)) as img:
-            img_rgb = img.convert("RGB").resize((224, 224), Image.Resampling.BICUBIC)
-            arr = np.array(img_rgb, dtype=np.float32) / 255.0
+        if self.status != ModelStatus.READY or self._session is None:
+            if not self.load():
+                raise RuntimeError(
+                    f"Vision model failed to load from '{self.model_path}'. "
+                    "Ensure ONNX weights are present."
+                )
 
-            # OpenAI CLIP standard normalization
-            mean = np.array([0.48145466, 0.4578275, 0.40821073], dtype=np.float32)
-            std = np.array([0.26862954, 0.26130258, 0.27577711], dtype=np.float32)
-            normalized = (arr - mean) / std
+        try:
+            with Image.open(io.BytesIO(image_bytes)) as img:
+                input_tensor = self._preprocess(img)
+        except Exception as e:
+            raise ValueError(f"Unable to decode image bytes: {e}") from e
 
-            # Compute deterministic 512-dim visual representation
-            # Flatten patches into 512 features
-            flat = normalized.reshape(-1)
-            # Downsample to 512 using deterministic projection bins
-            bins = np.linspace(0, len(flat), 513, dtype=int)
-            vector = np.array([flat[bins[i]:bins[i+1]].mean() for i in range(512)], dtype=np.float32)
-            # L2 normalize
-            norm = np.linalg.norm(vector)
-            if norm > 0:
-                vector = vector / norm
-            return vector.tolist()
+        # Real ONNX Runtime inference
+        outputs = self._session.run(["embedding"], {"input": input_tensor})
+        raw_emb = outputs[0][0].astype(np.float32)  # shape (512,)
+
+        # L2 normalize
+        norm = float(np.linalg.norm(raw_emb))
+        if norm > 0:
+            raw_emb = raw_emb / norm
+
+        return raw_emb.tolist()
 
     def inspect_image(
         self,
@@ -163,8 +253,8 @@ class LocalClipVisionModel(VisionModel):
     ) -> Dict[str, Any]:
         """
         Inspects an image, extracting physical measurable optical facts (OBSERVED)
-        and semantic visual deductions (INFERRED). Strictly distinguishes the two.
-        Accepts raw bytes, Path, filepath string, or PIL Image.
+        and genuine neural-network semantic deductions (INFERRED).
+        Strictly distinguishes optical measurements from neural classifications.
         """
         raw_target = image_bytes if image_bytes is not None else image_input
         if raw_target is None:
@@ -190,14 +280,28 @@ class LocalClipVisionModel(VisionModel):
         if not data:
             raise ValueError("Image bytes payload is empty.")
 
-        t0 = time.perf_counter()
-        with Image.open(io.BytesIO(data)) as img:
+        # Ensure model is ready
+        if self.status != ModelStatus.READY or self._session is None:
+            if not self.load():
+                raise RuntimeError(
+                    f"Vision model failed to load from '{self.model_path}'. "
+                    "Ensure ONNX weights are present."
+                )
+
+        t_total_start = time.perf_counter()
+
+        try:
+            pil_img = Image.open(io.BytesIO(data))
+        except Exception as e:
+            raise ValueError(f"Unable to decode image data: {e}") from e
+
+        with pil_img as img:
             width, height = img.size
-            format_name = img.format or Path(filename).suffix.lstrip(".").upper()
+            format_name = img.format or Path(filename).suffix.lstrip(".").upper() or "PNG"
             mode = img.mode
             aspect_ratio = round(width / float(height), 2) if height > 0 else 1.0
 
-            # Convert to RGB for channel analysis
+            # Convert to RGB for optical analysis
             rgb_img = img.convert("RGB")
             arr = np.array(rgb_img, dtype=np.float32)
 
@@ -220,7 +324,7 @@ class LocalClipVisionModel(VisionModel):
             hist = hist[hist > 0]
             entropy = round(float(-np.sum(hist * np.log2(hist))), 2)
 
-            # Extract dominant colors (palette clustering via quantized histogram)
+            # Dominant palette via median-cut quantization
             quantized = rgb_img.quantize(colors=4, method=Image.Quantize.MEDIANCUT).convert("RGB")
             palette_arr = np.array(quantized).reshape(-1, 3)
             unique_colors, counts = np.unique(palette_arr, axis=0, return_counts=True)
@@ -237,7 +341,7 @@ class LocalClipVisionModel(VisionModel):
                     "coverage_percent": pct,
                 })
 
-            # OBSERVED: Directly measured optical facts
+            # OBSERVED: Strictly objective optical measurements
             observed: Dict[str, Any] = {
                 "filename": filename,
                 "dimensions": {"width": width, "height": height},
@@ -255,61 +359,81 @@ class LocalClipVisionModel(VisionModel):
                 "dominant_palette": dominant_palette,
             }
 
-            # INFERRED: Semantic deductions & scene classification
-            # Rule-based visual classification based on measured optical properties
-            visual_category = "general_image"
-            semantic_tags = []
-            confidence = 0.85
+            # -----------------------------------------------------------------
+            # REAL NEURAL INFERENCE (ResNet-18 via ONNX Runtime)
+            # -----------------------------------------------------------------
+            t_prep = time.perf_counter()
+            input_tensor = self._preprocess(rgb_img)
+            prep_ms = round((time.perf_counter() - t_prep) * 1000, 2)
 
-            if contrast < 25.0 and brightness > 220:
-                visual_category = "document_page"
-                semantic_tags = ["document", "high_brightness", "low_contrast", "textual_layout"]
-                confidence = 0.90
-            elif entropy < 3.5 and len(dominant_palette) <= 3:
-                visual_category = "technical_diagram"
-                semantic_tags = ["schematic", "technical_diagram", "vector_graphic", "synthetic"]
-                confidence = 0.92
-            elif brightness < 80.0:
-                visual_category = "dark_mode_ui_or_dashboard"
-                semantic_tags = ["dark_mode", "ui_screenshot", "dashboard", "software_interface"]
-                confidence = 0.88
-            elif aspect_ratio > 1.4:
-                visual_category = "widescreen_capture_or_chart"
-                semantic_tags = ["wide_aspect", "data_visualization", "screen_state"]
-                confidence = 0.86
-            else:
-                visual_category = "photograph_or_natural_scene"
-                semantic_tags = ["natural_scene", "continuous_tone", "photographic"]
-                confidence = 0.82
+            t_infer = time.perf_counter()
+            logits, embedding = self._session.run(["logits", "embedding"], {"input": input_tensor})
+            infer_ms = round((time.perf_counter() - t_infer) * 1000, 2)
 
+            t_post = time.perf_counter()
+            # Softmax to get genuine class probabilities
+            logits_1d = logits[0]
+            shifted = logits_1d - np.max(logits_1d)
+            exp_logits = np.exp(shifted)
+            probabilities = exp_logits / np.sum(exp_logits)
+
+            # Top 5 predictions
+            top5_indices = np.argsort(probabilities)[-5:][::-1]
+            top_candidates = []
+            for class_idx in top5_indices:
+                top_candidates.append({
+                    "label": self._get_class_name(int(class_idx)),
+                    "confidence": round(float(probabilities[class_idx]), 4),
+                    "class_index": int(class_idx),
+                })
+
+            primary_pred = top_candidates[0]
+            visual_category = primary_pred["label"]
+            confidence = primary_pred["confidence"]
+            semantic_tags = [c["label"] for c in top_candidates]
+
+            # Candid descriptive synthesis
+            candidate_summary = ", ".join([f"{c['label']} ({c['confidence']*100:.1f}%)" for c in top_candidates[:3]])
             description = (
-                f"Image classified as '{visual_category}' ({width}x{height}, {format_name}). "
-                f"Brightness is {brightness}/255 with contrast index {contrast}. "
-                f"Visual entropy of {entropy} indicates {'structured low-noise' if entropy < 4.5 else 'rich complex'} content."
+                f"Neural vision model classified image as '{visual_category}' with {confidence*100:.1f}% confidence. "
+                f"Top visual candidates: {candidate_summary}. "
+                f"Image dimensions: {width}x{height} ({format_name}), luminance {brightness}/255."
             )
             if prompt:
-                description += f" User inquiry focus: '{prompt}'."
+                description += f" Visual inquiry: '{prompt}'."
 
             inferred: Dict[str, Any] = {
                 "visual_category": visual_category,
-                "semantic_tags": semantic_tags,
+                "primary_classification": visual_category,
                 "confidence": confidence,
+                "semantic_tags": semantic_tags,
+                "top_candidates": top_candidates,
                 "description": description,
                 "capabilities_boundary": (
                     "Optical features and dominant colors were measured directly from pixel arrays. "
-                    "Scene category and semantic tags were inferred via OpenAI-CLIP visual feature boundaries. "
-                    "Fine-grained alphanumeric character strings must be verified via the dedicated OCR pipeline."
+                    "Visual features and categories were generated via genuine neural network inference (ResNet-18 ImageNet-1k). "
+                    "Model is trained on general object and scene categories; fine-grained industrial surface crack or microscopic metallurgical defect detection requires specialized inspection models. "
+                    "Alphanumeric text must be verified via the dedicated OCR pipeline."
                 ),
             }
 
-            elapsed_ms = round((time.perf_counter() - t0) * 1000, 2)
-            logger.info(f"[VISION] Inspected '{filename}' in {elapsed_ms}ms -> Category: {visual_category}")
+            post_ms = round((time.perf_counter() - t_post) * 1000, 2)
+            total_elapsed_ms = round((time.perf_counter() - t_total_start) * 1000, 2)
+
+            logger.info(
+                f"[VISION] Inspected '{filename}' in {total_elapsed_ms}ms "
+                f"(prep={prep_ms}ms, infer={infer_ms}ms, post={post_ms}ms) "
+                f"-> Primary: {visual_category} ({confidence*100:.1f}%)"
+            )
 
             return {
                 "observed": observed,
                 "inferred": inferred,
                 "analysis": description,
-                "duration_ms": elapsed_ms,
+                "duration_ms": total_elapsed_ms,
+                "preprocessing_ms": prep_ms,
+                "inference_ms": infer_ms,
+                "postprocessing_ms": post_ms,
                 "hardware": self.target_hardware,
                 "execution_provider": self.execution_provider,
             }
@@ -340,7 +464,6 @@ class LocalClipVisionModel(VisionModel):
                 for img_idx, image_file in enumerate(page.images, 1):
                     img_name = getattr(image_file, "name", f"image_p{current_page_num}_{img_idx}.png")
                     img_data = image_file.data
-                    # Inspect image metadata safely
                     try:
                         with Image.open(io.BytesIO(img_data)) as pil_img:
                             w, h = pil_img.size
@@ -367,3 +490,4 @@ class LocalClipVisionModel(VisionModel):
 
 # Global singleton instance
 local_clip_vision = LocalClipVisionModel()
+LocalVisionModel = LocalClipVisionModel

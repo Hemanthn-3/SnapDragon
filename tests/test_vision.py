@@ -19,6 +19,7 @@ from pathlib import Path
 import pytest
 from PIL import Image
 import pypdf
+import numpy as np
 
 from backend.config import settings
 from backend.database import SessionLocal
@@ -80,9 +81,9 @@ def synthetic_blank_pdf():
 def test_vision_model_status_and_metadata():
     """Verifies that the vision model reports accurate configuration, formats, and epistemic boundaries."""
     status = local_clip_vision.get_status()
-    assert status["model_name"] == "OpenAI-CLIP-ViT-B32-Quantized"
-    assert status["architecture"] == "Vision Transformer (ViT-B/32)"
-    assert status["quantization"] == "w8a16"
+    assert "ResNet" in status["model_name"]
+    assert "ResNet-18" in status["architecture"]
+    assert status["framework"] == "ONNX Runtime"
     assert status["target_hardware"] == "Snapdragon X Elite Hexagon NPU"
     assert "jpg" in status["supported_formats"]
     assert "png" in status["supported_formats"]
@@ -389,7 +390,7 @@ def test_api_vision_status_endpoint(client):
     response = client.get("/vision/status")
     assert response.status_code == 200
     data = response.json()
-    assert data["model_name"] == "OpenAI-CLIP-ViT-B32-Quantized"
+    assert "ResNet" in data["model_name"]
     assert data["target_hardware"] == "Snapdragon X Elite Hexagon NPU"
     assert "observed" in data["epistemic_separation"]
     assert "inferred" in data["epistemic_separation"]
@@ -483,3 +484,131 @@ def test_api_vision_analyze_empty_file_rejected(client):
     )
     assert response.status_code == 400
     assert "Uploaded file is empty" in response.json()["detail"]
+
+
+# =====================================================================
+# 8. Phase 18 Real Neural Inference Verification Tests
+# =====================================================================
+
+def test_model_file_missing_fails_cleanly(tmp_path):
+    """Verifies that an absent model file fails gracefully without pretending to work."""
+    from backend.interfaces.base import ModelStatus
+    from backend.models_local.clip_vision import LocalClipVisionModel
+
+    missing = tmp_path / "nonexistent_model.onnx"
+    model = LocalClipVisionModel(model_path=missing)
+    ok = model.load()
+    assert ok is False
+    assert model.status == ModelStatus.FAILED
+    assert model.is_loaded is False
+
+    with pytest.raises(RuntimeError, match="failed to load"):
+        model.encode_image(b"some_bytes")
+
+
+def test_valid_image_successful_real_inference(synthetic_png_bytes):
+    """Verifies real neural inference runs, producing top candidate classes and timing metrics."""
+    local_clip_vision.load()
+    res = local_clip_vision.inspect_image(synthetic_png_bytes)
+
+    assert "observed" in res
+    assert "inferred" in res
+    inferred = res["inferred"]
+
+    assert inferred["confidence"] > 0.0
+    assert len(inferred["top_candidates"]) == 5
+
+    for cand in inferred["top_candidates"]:
+        assert "label" in cand
+        assert "confidence" in cand
+        assert "class_index" in cand
+        assert isinstance(cand["label"], str) and len(cand["label"]) > 0
+        assert 0.0 <= cand["confidence"] <= 1.0
+
+    assert res["preprocessing_ms"] >= 0.0
+    assert res["inference_ms"] > 0.0
+    assert res["postprocessing_ms"] >= 0.0
+    assert res["duration_ms"] > 0.0
+
+
+def test_malformed_image_raises_controlled_error():
+    """Verifies that corrupted image bytes raise a controlled ValueError instead of crashing."""
+    corrupted_data = b"NOT_A_VALID_IMAGE_FORMAT_DATA_STREAM" * 10
+    with pytest.raises(ValueError):
+        local_clip_vision.inspect_image(corrupted_data)
+
+    with pytest.raises(ValueError):
+        local_clip_vision.encode_image(corrupted_data)
+
+
+def test_two_different_images_produce_different_outputs(synthetic_png_bytes, synthetic_jpg_bytes):
+    """
+    Core correctness test: Two distinct images must produce distinct neural embeddings
+    and distinct classification distributions.
+    """
+    local_clip_vision.load()
+
+    emb1 = local_clip_vision.encode_image(synthetic_png_bytes)
+    emb2 = local_clip_vision.encode_image(synthetic_jpg_bytes)
+
+    # 512-dim visual embeddings must differ between distinct visual signals
+    assert emb1 != emb2
+    # Dot product / cosine similarity of distinct synthetic images must be less than 1.0
+    cos_sim = float(np.dot(emb1, emb2))
+    assert cos_sim < 0.999
+
+    res1 = local_clip_vision.inspect_image(synthetic_png_bytes)
+    res2 = local_clip_vision.inspect_image(synthetic_jpg_bytes)
+
+    # Inferred neural predictions must differ
+    labels1 = [c["label"] for c in res1["inferred"]["top_candidates"]]
+    labels2 = [c["label"] for c in res2["inferred"]["top_candidates"]]
+    assert labels1 != labels2 or res1["inferred"]["confidence"] != res2["inferred"]["confidence"]
+
+
+def test_cpu_provider_runs_real_inference(synthetic_png_bytes):
+    """Verifies that CPU execution provider executes genuine ONNX model inference."""
+    local_clip_vision.load()
+    assert local_clip_vision.execution_provider in ["CPUExecutionProvider", "QNNExecutionProvider"]
+
+    res = local_clip_vision.inspect_image(synthetic_png_bytes)
+    assert res["execution_provider"] == local_clip_vision.execution_provider
+
+    confs = [c["confidence"] for c in res["inferred"]["top_candidates"]]
+    # Top candidates must be strictly sorted by descending probability
+    assert confs == sorted(confs, reverse=True)
+
+
+def test_qnn_unavailable_reports_honest_cpu_status():
+    """Verifies that running on non-Snapdragon host does not falsely claim active NPU."""
+    import platform
+    if platform.machine().lower() not in ["arm64", "aarch64"]:
+        local_clip_vision.load()
+        status = local_clip_vision.get_status()
+        assert status["execution_provider"] == "CPUExecutionProvider"
+        assert "Hexagon NPU" not in status["current_hardware"]
+
+
+def test_returned_embedding_has_expected_shape_and_norm(synthetic_png_bytes):
+    """Verifies that encode_image produces a valid 512-dim L2-normalized float vector."""
+    local_clip_vision.load()
+    emb = local_clip_vision.encode_image(synthetic_png_bytes)
+
+    assert len(emb) == 512
+    assert all(isinstance(x, float) for x in emb)
+    # L2 norm must be approximately 1.0
+    norm = float(np.linalg.norm(emb))
+    assert np.isclose(norm, 1.0, atol=1e-4)
+
+
+def test_no_hardcoded_vision_heuristic_assignments():
+    """Structural test: ensures fake threshold rules and hardcoded labels are completely removed."""
+    import pathlib
+    source_file = pathlib.Path(__file__).parent.parent / "backend" / "models_local" / "clip_vision.py"
+    source_code = source_file.read_text(encoding="utf-8")
+
+    # The old fake heuristic threshold assignments must be gone
+    assert 'visual_category = "document_page"' not in source_code
+    assert 'visual_category = "technical_diagram"' not in source_code
+    assert 'visual_category = "dark_mode_ui_or_dashboard"' not in source_code
+    assert "bins = np.linspace(0, len(flat), 513, dtype=int)" not in source_code

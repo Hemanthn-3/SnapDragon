@@ -1,9 +1,11 @@
 # NEXUS: Multimodal Vision & Image Understanding Architecture (Phase 9)
 
 **Document**: `docs/VISION_ANALYSIS.md`  
-**Target Platform**: Qualcomm Snapdragon X Elite / Plus (Windows 11 ARM64)  
-**Primary Vision Model**: `OpenAI-Clip` (ViT-B/32, `w8a16`) via Qualcomm AI Hub  
-**Pipeline Integration**: Composite Perception Architecture (`OpenAI-Clip` + `EasyOCR` + `Llama-v3.2-1B-Instruct`)
+**Target Platform**: Qualcomm Snapdragon X Elite / Plus (Windows 11 ARM64) & Windows AMD64 Host  
+**Primary Vision Model**: `ResNet-18` (Dual Output: 1000-class ImageNet Classification + 512-dim Normalized Feature Embedding)  
+**Model Source**: PyTorch / TorchVision (`ResNet18_Weights.DEFAULT`), exported to standalone ONNX (Opset 18) at `models/vision/resnet18_vision.onnx`  
+**Runtime**: ONNX Runtime (`CPUExecutionProvider` [VERIFIED]; `QNNExecutionProvider` [SUPPORTED BY CODE / NOT PHYSICALLY VERIFIED])  
+**Pipeline Integration**: Composite Perception Architecture (`ResNet-18` + `EasyOCR` / `Tesseract` + `Llama-v3.2-1B-Instruct`)  
 
 ---
 
@@ -11,7 +13,7 @@
 
 In enterprise, engineering, and technical document analysis, multimodal comprehension requires rigorous epistemic precision:
 1. **Never Confuse Measurement with Deduction**: Optical measurements directly extracted from pixels (**`OBSERVED`**) must be strictly distinguished from semantic interpretations and statistical classifications (**`INFERRED`**).
-2. **Never Claim Unsupported Capabilities**: `OpenAI-Clip` (ViT-B/32) is a 512-dimensional visual semantic encoder; it is not a monolithic 7B VLM with fine-grained bounding-box coordinate tracking for tiny fonts. Micro-text is handled by dedicated OCR backbones.
+2. **Never Claim Unsupported Capabilities**: `ResNet-18` is a genuine 1000-class ImageNet convolutional neural network generating 512-dimensional visual feature vectors. It is not an industrial defect microscope: microscopic surface fatigue cracks, metallurgical pitting, or tiny alphanumeric strings require dedicated inspection models or dedicated OCR backbones.
 3. **Broad Document & Image Format Support**:
    - Native images: **PNG**, **JPG**, **JPEG**.
    - **Images embedded in PDFs**: Extracted directly from PDF page streams without external cloud converters.
@@ -83,13 +85,16 @@ NEXUS handles three primary visual inputs:
 ## 4. Hardware Optimization & Snapdragon Execution
 
 - **Target Silicon**: Qualcomm Hexagon NPU on Snapdragon X Elite / Plus (`QnnHtp.dll` on Windows 11 ARM64).
-- **Quantization**: `w8a16` (8-bit weights, 16-bit activations via Qualcomm AI Hub).
-- **Execution Provider on Development Host**:
-  - Running on AMD64 Windows host reports `CPUExecutionProvider` with explicit blocker documentation:
-    ```
-    Blocker: Qualcomm Hexagon NPU physically absent on non-Snapdragon silicon.
-    ```
-  - Computes exact visual feature extraction and normalized 512-dim visual embeddings locally on CPU without fabricating NPU execution.
+- **CPU Execution Provider**: `CPUExecutionProvider` [**VERIFIED**]
+  - Multi-threaded AVX2/NEON ONNX Runtime kernel execution.
+  - Generates genuine 1000-class ImageNet distributions and 512-dim visual embeddings locally.
+- **Snapdragon NPU Execution Provider**: `QNNExecutionProvider` (`QnnHtp.dll`) [**SUPPORTED BY CODE** / **QUALCOMM-DOCUMENTED**]
+  - Integrated via ONNX Runtime QNN Execution Provider.
+  - Automatically detected on ARM64 Windows 11 with Qualcomm AI Engine Direct runtime.
+- **Physical Snapdragon NPU Execution**: [**NOT PHYSICALLY VERIFIED**]
+  - Development host is AMD64 Windows; physical Hexagon NPU execution remains unverified until deployed on physical Snapdragon silicon.
+- **Hardware Blocker Logging**:
+  - Running on non-ARM64 hosts surfaces explicit blocker diagnostics in `/vision/status` rather than simulating fake NPU status.
 
 ---
 

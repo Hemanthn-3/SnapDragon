@@ -1,6 +1,6 @@
 {
-  "timestamp": "2026-09-19T06:18:08.422132+00:00",
-  "total_benchmark_duration_seconds": 6.71,
+  "timestamp": "2026-09-25T10:37:28.314517+00:00",
+  "total_benchmark_duration_seconds": 1.04,
   "iterations_per_model": 1,
   "hardware_profile": {
     "host_architecture": "AMD64",
@@ -9,7 +9,7 @@
     "physical_cpu_cores": 10,
     "logical_cpu_cores": 16,
     "total_ram_gb": 23.71,
-    "available_ram_gb": 5.37,
+    "available_ram_gb": 7.98,
     "onnx_available_providers": [
       "AzureExecutionProvider",
       "CPUExecutionProvider"
@@ -32,15 +32,15 @@
       "iterations": 1,
       "cold_start_ms": 0.0,
       "latency_stats": {
-        "min_ms": 1303.87,
-        "max_ms": 1303.87,
-        "mean_ms": 1303.87,
-        "median_ms": 1303.87,
-        "p95_ms": 1303.87
+        "min_ms": 149.46,
+        "max_ms": 149.46,
+        "mean_ms": 149.46,
+        "median_ms": 149.46,
+        "p95_ms": 149.46
       },
-      "rss_memory_mb": 3033.97,
+      "rss_memory_mb": 3032.29,
       "memory_delta_mb": 0.04,
-      "avg_cpu_percent": 366.7,
+      "avg_cpu_percent": 1369.1,
       "npu_usage": "N/A - Host architecture has no Hexagon NPU"
     },
     {
@@ -55,16 +55,16 @@
       "iterations": 1,
       "cold_start_ms": 0.01,
       "latency_stats": {
-        "min_ms": 5240.06,
-        "max_ms": 5240.06,
-        "mean_ms": 5240.06,
-        "median_ms": 5240.06,
-        "p95_ms": 5240.06
+        "min_ms": 811.21,
+        "max_ms": 811.21,
+        "mean_ms": 811.21,
+        "median_ms": 811.21,
+        "p95_ms": 811.21
       },
-      "tokens_per_second": 3.1,
-      "rss_memory_mb": 3038.25,
-      "memory_delta_mb": 4.27,
-      "avg_cpu_percent": 373.9,
+      "tokens_per_second": 19.7,
+      "rss_memory_mb": 3036.2,
+      "memory_delta_mb": 3.91,
+      "avg_cpu_percent": 1321.3,
       "npu_usage": "N/A - Host architecture has no Hexagon NPU"
     },
     {
@@ -79,38 +79,38 @@
       "iterations": 1,
       "cold_start_ms": 0.0,
       "latency_stats": {
-        "min_ms": 0.63,
-        "max_ms": 0.63,
-        "mean_ms": 0.63,
-        "median_ms": 0.63,
-        "p95_ms": 0.63
+        "min_ms": 0.49,
+        "max_ms": 0.49,
+        "mean_ms": 0.49,
+        "median_ms": 0.49,
+        "p95_ms": 0.49
       },
-      "rss_memory_mb": 3038.25,
+      "rss_memory_mb": 3036.2,
       "memory_delta_mb": 0.0,
       "avg_cpu_percent": 0.0,
       "npu_usage": "N/A - Host architecture has no Hexagon NPU"
     },
     {
-      "model_name": "OpenAI-CLIP-ViT-B32-Quantized",
+      "model_name": "ResNet-18-Vision",
       "modality": "Vision Embedding & Visual Classification",
-      "runtime": "ONNX Runtime (QNN Context Binary)",
+      "runtime": "ONNX Runtime (Real Neural Network)",
       "target_hardware": "Snapdragon X Elite Hexagon NPU",
       "execution_unit": "CPUExecutionProvider (Dev Host)",
-      "target_quantization": "w8a16",
-      "active_quantization": "w8a16 Static HTP Specification",
+      "target_quantization": "FP32 / QNN W8A16 Compatible",
+      "active_quantization": "Standard ONNX Weights",
       "input_size": "224x224 RGB Image (150,528 pixels)",
       "iterations": 1,
       "cold_start_ms": 0.0,
       "latency_stats": {
-        "min_ms": 157.48,
-        "max_ms": 157.48,
-        "mean_ms": 157.48,
-        "median_ms": 157.48,
-        "p95_ms": 157.48
+        "min_ms": 71.35,
+        "max_ms": 71.35,
+        "mean_ms": 71.35,
+        "median_ms": 71.35,
+        "p95_ms": 71.35
       },
-      "rss_memory_mb": 3038.28,
-      "memory_delta_mb": 0.03,
-      "avg_cpu_percent": 367.0,
+      "rss_memory_mb": 3036.21,
+      "memory_delta_mb": 0.0,
+      "avg_cpu_percent": 1050.6,
       "npu_usage": "N/A - Host architecture has no Hexagon NPU"
     },
     {

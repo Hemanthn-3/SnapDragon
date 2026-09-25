@@ -304,13 +304,13 @@ class BenchmarkRunner:
         avg_cpu = round(sum(cpu_readings) / len(cpu_readings), 1) if cpu_readings else 0.0
 
         return {
-            "model_name": "OpenAI-CLIP-ViT-B32-Quantized",
+            "model_name": local_clip_vision.model_name,
             "modality": "Vision Embedding & Visual Classification",
-            "runtime": "ONNX Runtime (QNN Context Binary)",
+            "runtime": "ONNX Runtime (Real Neural Network)",
             "target_hardware": "Snapdragon X Elite Hexagon NPU",
             "execution_unit": f"{local_clip_vision.execution_provider} (Dev Host)",
-            "target_quantization": "w8a16",
-            "active_quantization": "w8a16 Static HTP Specification",
+            "target_quantization": "FP32 / QNN W8A16 Compatible",
+            "active_quantization": "Standard ONNX Weights",
             "input_size": "224x224 RGB Image (150,528 pixels)",
             "iterations": self.iterations,
             "cold_start_ms": cold_start_ms,

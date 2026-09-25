@@ -389,24 +389,36 @@ class NexusBenchmarkSuite:
 
         # Cold run
         t0 = time.perf_counter()
-        local_clip_vision.inspect_image(img_bytes)
+        cold_res = local_clip_vision.inspect_image(img_bytes)
         cold_latency_ms = round((time.perf_counter() - t0) * 1000, 2)
 
         # Warm runs
         warm_times = []
+        prep_times = []
+        infer_times = []
+        post_times = []
         for _ in range(self.iterations):
-            t0 = time.perf_counter()
-            local_clip_vision.inspect_image(img_bytes)
-            warm_times.append((time.perf_counter() - t0) * 1000)
+            res = local_clip_vision.inspect_image(img_bytes)
+            warm_times.append(res.get("duration_ms", 0.0))
+            prep_times.append(res.get("preprocessing_ms", 0.0))
+            infer_times.append(res.get("inference_ms", 0.0))
+            post_times.append(res.get("postprocessing_ms", 0.0))
 
         stats = self._compute_stats(warm_times)
         mem_mb, cpu_pct = self._measure_cpu_and_mem()
 
         return {
             "component": "Vision",
-            "model": "OpenAI-Clip (ViT-B/32)",
-            "runtime": "ORT QNN / Precompiled Vision Model",
-            "quantization": "w8a16",
+            "model": local_clip_vision.model_name,
+            "architecture": "ResNet-18 (Dual-Head: Classification + Embedding)",
+            "model_version": "TorchVision / ONNX Opset 18",
+            "input_resolution": "224x224 RGB",
+            "runtime": "onnxruntime",
+            "execution_provider": local_clip_vision.execution_provider,
+            "target_hardware": local_clip_vision.target_hardware,
+            "preprocessing_mean_ms": round(float(np.mean(prep_times)), 2) if prep_times else 0.0,
+            "inference_mean_ms": round(float(np.mean(infer_times)), 2) if infer_times else 0.0,
+            "postprocessing_mean_ms": round(float(np.mean(post_times)), 2) if post_times else 0.0,
             "cold_latency_ms": cold_latency_ms,
             "warm_latencies_ms": [round(t, 2) for t in warm_times],
             "median_latency_ms": stats["median"],
@@ -416,7 +428,7 @@ class NexusBenchmarkSuite:
             "cpu_utilization_pct": cpu_pct,
             "npu_measured": False,
             "status": "VERIFIED",
-            "notes": "Multimodal inspection over 224x224 RGB PNG image with epistemic separation",
+            "notes": "Genuine ONNX neural network inference over 224x224 RGB image with OBSERVED vs INFERRED epistemic separation",
         }
 
     # -------------------------------------------------------------------------
