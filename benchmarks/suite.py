@@ -120,25 +120,57 @@ class NexusBenchmarkSuite:
         }
 
     # -------------------------------------------------------------------------
-    # Workload 1: ASR (Speech Recognition)
+    # Workload 1: ASR (Speech Recognition) — Real Whisper Inference
     # -------------------------------------------------------------------------
     def benchmark_asr(self) -> Dict[str, Any]:
-        logger.info("Benchmarking Workload 1: ASR (Whisper-Small-Quantized)...")
+        logger.info("Benchmarking Workload 1: ASR (Real Whisper inference)...")
         import io
         import wave
+
+        # Generate a 3-second 16kHz mono sine tone (provides non-trivial audio for timing)
+        AUDIO_DURATION_S = 3.0
         buf = io.BytesIO()
         with wave.open(buf, "wb") as wf:
             wf.setnchannels(1)
             wf.setsampwidth(2)
             wf.setframerate(16000)
-            t = np.linspace(0, 1.0, 16000, endpoint=False)
-            samples = (np.sin(2 * np.pi * 440 * t) * 32767).astype(np.int16)
+            t = np.linspace(0, AUDIO_DURATION_S, int(16000 * AUDIO_DURATION_S), endpoint=False)
+            samples = (np.sin(2 * np.pi * 440 * t) * 0.5 * 32767).astype(np.int16)
             wf.writeframes(samples.tobytes())
         audio_bytes = buf.getvalue()
 
-        # Cold run
+        # Ensure the model is loaded (real load, not fake)
+        if not local_speech_model.is_loaded:
+            local_speech_model.load()
+
+        status = "VERIFIED"
+        notes = f"Real Whisper inference on {AUDIO_DURATION_S:.1f}s 16kHz mono audio (440 Hz tone)"
+
+        if not local_speech_model.is_loaded:
+            mem_mb, cpu_pct = self._measure_cpu_and_mem()
+            return {
+                "component": "ASR",
+                "model": local_speech_model.model_name,
+                "runtime": local_speech_model.runtime,
+                "quantization": "fp32 (CPU) / w8a16 (QNN target)",
+                "cold_latency_ms": None,
+                "warm_latencies_ms": [],
+                "median_latency_ms": None,
+                "p95_latency_ms": None,
+                "mean_latency_ms": None,
+                "audio_duration_s": AUDIO_DURATION_S,
+                "rtf": None,
+                "memory_rss_mb": mem_mb,
+                "cpu_utilization_pct": cpu_pct,
+                "npu_measured": local_speech_model.execution_provider == "QNNExecutionProvider",
+                "execution_provider": local_speech_model.execution_provider,
+                "status": "FAILED",
+                "notes": "Model failed to load. Run: pip install openai-whisper",
+            }
+
+        # Cold run (first inference — includes any JIT/caching overhead)
         t0 = time.perf_counter()
-        local_speech_model.transcribe(audio_bytes)
+        cold_result = local_speech_model.transcribe(audio_bytes)
         cold_latency_ms = round((time.perf_counter() - t0) * 1000, 2)
 
         # Warm iterations
@@ -151,21 +183,27 @@ class NexusBenchmarkSuite:
         stats = self._compute_stats(warm_times)
         mem_mb, cpu_pct = self._measure_cpu_and_mem()
 
+        # Real-time factor: processing_time / audio_duration
+        rtf = round(stats["median"] / (AUDIO_DURATION_S * 1000), 4) if stats["median"] else None
+
         return {
             "component": "ASR",
-            "model": "Whisper-Small-Quantized",
-            "runtime": "ORT QNN / PyTorch Fallback",
-            "quantization": "w8a16",
+            "model": local_speech_model.model_name,
+            "runtime": local_speech_model.runtime,
+            "quantization": "fp32 (CPU) / w8a16 (QNN target)",
             "cold_latency_ms": cold_latency_ms,
             "warm_latencies_ms": [round(t, 2) for t in warm_times],
             "median_latency_ms": stats["median"],
             "p95_latency_ms": stats["p95"],
             "mean_latency_ms": stats["mean"],
+            "audio_duration_s": AUDIO_DURATION_S,
+            "rtf": rtf,
             "memory_rss_mb": mem_mb,
             "cpu_utilization_pct": cpu_pct,
-            "npu_measured": False,
-            "status": "VERIFIED",
-            "notes": "Decodes 1.0s 16kHz audio PCM stream",
+            "npu_measured": local_speech_model.execution_provider == "QNNExecutionProvider",
+            "execution_provider": local_speech_model.execution_provider,
+            "status": status,
+            "notes": notes,
         }
 
     # -------------------------------------------------------------------------
